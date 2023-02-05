@@ -1,14 +1,68 @@
+import React, { useState } from "react";
 import Head from "next/head";
+import Image from "next/image";
+import { doc, setDoc } from "firebase/firestore";
 
-import AppWrapper from "@/components/AppWrapper";
-import Login from "@/components/HomePage/Login";
-import Dashboard from "@/components/HomePage/Dashboard";
+import TodoItem from "../components/HomePage/TodoItem";
 
+import { db } from "../../firebase";
 import { useAuth } from "@/context/AuthContext";
+import useFecthTodos from "@/hooks/fetchTodos";
+import AppWrapper from "@/components/AppWrapper";
+import withAuth from "@/hoc/WithAuth";
 
-export default function Home() {
+const HomePage = () => {
+    const [todoItem, setTodoItem] = useState("");
+    const [updateValue, setUpdateValue] = useState({
+        update: false,
+        key: 0,
+    });
     const { currentUser } = useAuth();
-    console.log(currentUser);
+    const { loading, todoList } = useFecthTodos();
+
+    const handleAddTODO = () => {
+        let maxID = 0;
+        if (todoList !== undefined) {
+            const ids = Object.keys(todoList).map((key) =>
+                Number.parseInt(key)
+            );
+            maxID = Math.max(...ids);
+        }
+        syncTODOs(maxID + 1);
+    };
+
+    const handleUpdateTODO = () => {
+        syncTODOs(updateValue.key);
+    };
+
+    const onUpdate = (key: number, label: string) => {
+        setTodoItem(label);
+        setUpdateValue({
+            update: true,
+            key,
+        });
+    };
+
+    const syncTODOs = async (key: number) => {
+        const userRef = doc(db, "users", currentUser!.uid);
+        await setDoc(
+            userRef,
+            {
+                todos: {
+                    [key]: todoItem,
+                },
+            },
+            { merge: true }
+        );
+
+        setTodoItem("");
+        if (updateValue.update) {
+            setUpdateValue({
+                key: 0,
+                update: false,
+            });
+        }
+    };
     return (
         <>
             <Head>
@@ -23,7 +77,58 @@ export default function Home() {
                 />
                 <link rel="icon" href="/favicon.ico" />
             </Head>
-            <AppWrapper>{!currentUser ? <Login /> : <Dashboard />}</AppWrapper>
+            <AppWrapper>
+                <div className="py-12">
+                    <div className="flex justify-center">
+                        <input
+                            type="text"
+                            className="bg-gray-100 w-[35ch] outline-none p-3 rounded-l-md"
+                            value={todoItem}
+                            onChange={(e) => {
+                                setTodoItem(e.target.value);
+                            }}
+                        />
+                        <button
+                            className="bg-orange-300 text-white font-black hover:bg-orange-500 duration-200 active:bg-orange-600 p-3 rounded-r-md"
+                            type="button"
+                            disabled={todoItem === ""}
+                            onClick={
+                                updateValue.update
+                                    ? handleUpdateTODO
+                                    : handleAddTODO
+                            }
+                        >
+                            {updateValue.update ? "Update" : "Add"} TODO
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col gap-y-3 items-center mt-6">
+                        {loading && (
+                            <Image
+                                src="/vectors/icon-loading.svg"
+                                alt=""
+                                width={0}
+                                height={0}
+                                className="w-10 h-10 animate-spin"
+                            />
+                        )}
+                        {!loading && todoList !== undefined ? (
+                            Object.keys(todoList).map((todoItemKey) => (
+                                <TodoItem
+                                    key={todoItemKey}
+                                    item={todoList[todoItemKey]}
+                                    itemKey={Number.parseInt(todoItemKey)}
+                                    onUpdate={onUpdate}
+                                />
+                            ))
+                        ) : (
+                            <>No Todos found</>
+                        )}
+                    </div>
+                </div>
+            </AppWrapper>
         </>
     );
-}
+};
+
+export default withAuth(HomePage);

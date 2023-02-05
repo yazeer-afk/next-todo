@@ -1,5 +1,6 @@
+import React, { FC, useEffect } from "react";
+import Router from "next/router";
 import { useAuth } from "@/context/AuthContext";
-import React, { FC } from "react";
 
 interface IAppWrapperProps {
     children: JSX.Element;
@@ -7,7 +8,6 @@ interface IAppWrapperProps {
 
 const AppWrapper: FC<IAppWrapperProps> = ({ children }) => {
     const { signout, currentUser } = useAuth();
-
     return (
         <>
             <div className="relative">
@@ -21,6 +21,7 @@ const AppWrapper: FC<IAppWrapperProps> = ({ children }) => {
                         <button
                             onClick={() => {
                                 signout?.();
+                                Router.push("/sign");
                             }}
                             className="bg-orange-300 text-white font-medium hover:bg-orange-500 duration-200 active:bg-orange-600 outline-none py-1 px-3 rounded-md"
                         >
